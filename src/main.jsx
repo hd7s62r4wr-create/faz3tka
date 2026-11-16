@@ -39,12 +39,14 @@ const providerActiveJobs = [
   { id: 101, title: 'تركيب مكيف شقّة', city: 'الرياض', status: 'قيد التنفيذ', price: '1200 ر.س' },
   { id: 102, title: 'إصلاح تسريب مطبخ', city: 'جدة', status: 'جاهز للزيارة', price: '850 ر.س' },
   { id: 103, title: 'دهان غرفة أطفال', city: 'الدمام', status: 'مؤكد', price: '1500 ر.س' },
+  { id: 104, title: 'تركيب باب خشبي', city: 'مكة', status: 'قيد المراجعة', price: '980 ر.س' },
 ];
 
 const providerQuotes = [
   { id: 201, title: 'عروض غسيل بلاط', city: 'مكة', budget: '1400 ر.س', state: 'قيد الرد' },
   { id: 202, title: 'تركيب ستاندرد مكيف', city: 'الرياض', budget: '2200 ر.س', state: 'تم قبولها' },
   { id: 203, title: 'تجهيز غرفة إضافية', city: 'جدة', budget: '9800 ر.س', state: 'قيد المراجعة' },
+  { id: 204, title: 'إصلاح شبكة مياه', city: 'الدمام', budget: '760 ر.س', state: 'قيد المتابعة' },
 ];
 
 const aiReply = (text) => {
@@ -85,6 +87,8 @@ function App() {
   const [chatInput, setChatInput] = useState('');
   const [chatMessages, setChatMessages] = useState(seedChat);
   const [requests, setRequests] = useState(seedRequests);
+  const [quoteForm, setQuoteForm] = useState({ title: '', city: 'الرياض', price: '', note: '' });
+  const [quotes, setQuotes] = useState(providerQuotes);
 
   useEffect(() => {
     localStorage.setItem('faz3tka-role', role);
@@ -98,6 +102,9 @@ function App() {
       const savedRequests = await fetchFromSupabase('faz3tka-requests', seedRequests);
       if (savedRequests && savedRequests.length) setRequests(savedRequests);
 
+      const savedQuotes = await fetchFromSupabase('faz3tka-quotes', providerQuotes);
+      if (savedQuotes && savedQuotes.length) setQuotes(savedQuotes);
+
       const localChat = localStorage.getItem('faz3tka-chat');
       if (localChat) {
         try { setChatMessages(JSON.parse(localChat)); } catch {}
@@ -106,6 +113,11 @@ function App() {
       const localRequests = localStorage.getItem('faz3tka-requests');
       if (localRequests) {
         try { setRequests(JSON.parse(localRequests)); } catch {}
+      }
+
+      const localQuotes = localStorage.getItem('faz3tka-quotes');
+      if (localQuotes) {
+        try { setQuotes(JSON.parse(localQuotes)); } catch {}
       }
     };
 
@@ -125,6 +137,13 @@ function App() {
       syncWithSupabase('faz3tka-requests', requests).catch(() => {});
     }
   }, [requests]);
+
+  useEffect(() => {
+    localStorage.setItem('faz3tka-quotes', JSON.stringify(quotes));
+    if (isSupabaseConfigured) {
+      syncWithSupabase('faz3tka-quotes', quotes).catch(() => {});
+    }
+  }, [quotes]);
 
   const stats = useMemo(() => ({
     requests: requests.length + 18,
@@ -167,6 +186,23 @@ function App() {
       { sender: 'assistant', text: aiReply(text) },
     ]);
     setChatInput('');
+  };
+
+  const submitQuote = () => {
+    const title = quoteForm.title.trim();
+    const price = quoteForm.price.trim();
+    if (!title || !price) return;
+
+    const newQuote = {
+      id: Date.now(),
+      title,
+      city: quoteForm.city,
+      budget: `${price} ر.س`,
+      state: 'قيد المراجعة',
+    };
+
+    setQuotes((prev) => [newQuote, ...prev]);
+    setQuoteForm({ title: '', city: 'الرياض', price: '', note: '' });
   };
 
   return (
@@ -445,7 +481,7 @@ function App() {
                   </div>
                   <div className="mini-box">
                     <span>العروض الحالية</span>
-                    <strong>{providerQuotes.length}</strong>
+                    <strong>{quotes.length}</strong>
                   </div>
                   <div className="mini-box">
                     <span>إيراد الشهر</span>
@@ -454,6 +490,38 @@ function App() {
                   <div className="mini-box">
                     <span>التقييم</span>
                     <strong>4.9/5</strong>
+                  </div>
+                </div>
+
+                <div className="quote-builder">
+                  <h4>إرسال عرض سعر</h4>
+                  <div className="quote-form">
+                    <input
+                      value={quoteForm.title}
+                      onChange={(e) => setQuoteForm({ ...quoteForm, title: e.target.value })}
+                      placeholder="عنوان العرض"
+                    />
+                    <select
+                      value={quoteForm.city}
+                      onChange={(e) => setQuoteForm({ ...quoteForm, city: e.target.value })}
+                    >
+                      <option value="الرياض">الرياض</option>
+                      <option value="جدة">جدة</option>
+                      <option value="الدمام">الدمام</option>
+                      <option value="مكة">مكة</option>
+                    </select>
+                    <input
+                      value={quoteForm.price}
+                      onChange={(e) => setQuoteForm({ ...quoteForm, price: e.target.value })}
+                      placeholder="السعر بالريال"
+                    />
+                    <textarea
+                      value={quoteForm.note}
+                      onChange={(e) => setQuoteForm({ ...quoteForm, note: e.target.value })}
+                      rows="3"
+                      placeholder="ملاحظات العرض"
+                    />
+                    <button className="primary-btn" onClick={submitQuote}>إرسال العرض</button>
                   </div>
                 </div>
 
@@ -476,7 +544,7 @@ function App() {
 
                   <div className="provider-list">
                     <h4>عروض الأسعار</h4>
-                    {providerQuotes.map((quote) => (
+                    {quotes.map((quote) => (
                       <div key={quote.id} className="list-row">
                         <div>
                           <strong>{quote.title}</strong>
