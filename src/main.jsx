@@ -89,6 +89,7 @@ function App() {
   const [requests, setRequests] = useState(seedRequests);
   const [quoteForm, setQuoteForm] = useState({ title: '', city: 'الرياض', price: '', note: '' });
   const [quotes, setQuotes] = useState(providerQuotes);
+  const [selectedRequestId, setSelectedRequestId] = useState(seedRequests[0].id);
 
   useEffect(() => {
     localStorage.setItem('faz3tka-role', role);
@@ -100,7 +101,10 @@ function App() {
       if (savedChat && savedChat.length) setChatMessages(savedChat);
 
       const savedRequests = await fetchFromSupabase('faz3tka-requests', seedRequests);
-      if (savedRequests && savedRequests.length) setRequests(savedRequests);
+      if (savedRequests && savedRequests.length) {
+        setRequests(savedRequests);
+        setSelectedRequestId(savedRequests[0]?.id ?? seedRequests[0].id);
+      }
 
       const savedQuotes = await fetchFromSupabase('faz3tka-quotes', providerQuotes);
       if (savedQuotes && savedQuotes.length) setQuotes(savedQuotes);
@@ -112,7 +116,11 @@ function App() {
 
       const localRequests = localStorage.getItem('faz3tka-requests');
       if (localRequests) {
-        try { setRequests(JSON.parse(localRequests)); } catch {}
+        try {
+          const parsed = JSON.parse(localRequests);
+          setRequests(parsed);
+          setSelectedRequestId(parsed[0]?.id ?? seedRequests[0].id);
+        } catch {}
       }
 
       const localQuotes = localStorage.getItem('faz3tka-quotes');
@@ -145,6 +153,8 @@ function App() {
     }
   }, [quotes]);
 
+  const selectedRequest = requests.find((request) => request.id === selectedRequestId) || requests[0] || seedRequests[0];
+
   const stats = useMemo(() => ({
     requests: requests.length + 18,
     providers: 124,
@@ -169,6 +179,7 @@ function App() {
     };
 
     setRequests((prev) => [next, ...prev]);
+    setSelectedRequestId(next.id);
     setChatMessages((prev) => [
       ...prev,
       { sender: 'assistant', text: `تم إنشاء الطلب: ${title} في ${city}. جاري تجهيز العروض من مقدمي الخدمة.` },
@@ -391,7 +402,7 @@ function App() {
 
               <div className="task-list">
                 {requests.slice(0, 4).map((item) => (
-                  <div key={item.id} className="task-item">
+                  <button key={item.id} className="task-item request-item-button" onClick={() => setSelectedRequestId(item.id)}>
                     <div>
                       <strong>{item.title}</strong>
                       <span>{item.city}</span>
@@ -400,7 +411,7 @@ function App() {
                       <small>{item.status}</small>
                       <b>{item.price}</b>
                     </div>
-                  </div>
+                  </button>
                 ))}
               </div>
             </div>
@@ -556,6 +567,95 @@ function App() {
                         </div>
                       </div>
                     ))}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {role === 'manager' && (
+              <div className="manager-panel">
+                <div className="manager-overview">
+                  <div className="mini-box">
+                    <span>إجمالي الطلبات</span>
+                    <strong>{requests.length}</strong>
+                  </div>
+                  <div className="mini-box">
+                    <span>العروض الجديدة</span>
+                    <strong>{quotes.length}</strong>
+                  </div>
+                  <div className="mini-box">
+                    <span>الطلبات الحالية</span>
+                    <strong>{requests.filter((r) => r.status !== 'تم إنشاء الطلب').length}</strong>
+                  </div>
+                  <div className="mini-box">
+                    <span>العمليات</span>
+                    <strong>183</strong>
+                  </div>
+                </div>
+
+                <div className="manager-grid">
+                  <div className="manager-list">
+                    <h4>طلبات النظام</h4>
+                    {requests.map((request) => (
+                      <button
+                        key={request.id}
+                        className={`request-row ${selectedRequestId === request.id ? 'selected' : ''}`}
+                        onClick={() => setSelectedRequestId(request.id)}
+                      >
+                        <div>
+                          <strong>{request.title}</strong>
+                          <small>{request.city}</small>
+                        </div>
+                        <div className="right-align">
+                          <span>{request.status}</span>
+                          <b>{request.price}</b>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="detail-panel">
+                    <h4>تفاصيل الطلب</h4>
+                    <div className="detail-header">
+                      <div>
+                        <span>العنوان</span>
+                        <strong>{selectedRequest.title}</strong>
+                      </div>
+                      <span className="status-pill">{selectedRequest.status}</span>
+                    </div>
+
+                    <div className="detail-grid">
+                      <div>
+                        <span>المدينة</span>
+                        <strong>{selectedRequest.city}</strong>
+                      </div>
+                      <div>
+                        <span>الخدمة</span>
+                        <strong>{selectedRequest.service}</strong>
+                      </div>
+                      <div>
+                        <span>السعر</span>
+                        <strong>{selectedRequest.price}</strong>
+                      </div>
+                      <div>
+                        <span>المقدم</span>
+                        <strong>مؤسسة الخليج</strong>
+                      </div>
+                    </div>
+
+                    <div className="detail-notes">
+                      <h5>ملاحظات الطلب</h5>
+                      <p>
+                        العميل يريد تنفيذ الخدمة في أسرع وقت ممكن مع متابعة واضحة ومتابعة فنية
+                        خلال التنفيذ، مع الالتزام بالجدول الزمني المتفق عليه أولاً بأول.
+                      </p>
+                    </div>
+
+                    <div className="detail-actions">
+                      <button className="primary-btn">قبول الطلب</button>
+                      <button className="secondary-btn">إرسال رسالة</button>
+                      <button className="ghost-btn">إلغاء</button>
+                    </div>
                   </div>
                 </div>
               </div>
