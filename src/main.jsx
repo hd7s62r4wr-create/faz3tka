@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import ReactDOM from 'react-dom/client';
+import { isSupabaseConfigured, syncWithSupabase, fetchFromSupabase } from './lib/supabase';
 import './styles.css';
 
 const services = [
@@ -63,21 +64,51 @@ function App() {
   const [customTitle, setCustomTitle] = useState('');
   const [details, setDetails] = useState('');
   const [chatInput, setChatInput] = useState('');
-  const [chatMessages, setChatMessages] = useState(() => {
-    const saved = localStorage.getItem('faz3tka-chat');
-    return saved ? JSON.parse(saved) : seedChat;
-  });
-  const [requests, setRequests] = useState(() => {
-    const saved = localStorage.getItem('faz3tka-requests');
-    return saved ? JSON.parse(saved) : seedRequests;
-  });
+  const [chatMessages, setChatMessages] = useState(seedChat);
+  const [requests, setRequests] = useState(seedRequests);
+
+  useEffect(() => {
+    const loadPersistent = async () => {
+      const savedChat = await fetchFromSupabase('faz3tka-chat', seedChat);
+      if (savedChat && savedChat.length) setChatMessages(savedChat);
+
+      const savedRequests = await fetchFromSupabase('faz3tka-requests', seedRequests);
+      if (savedRequests && savedRequests.length) setRequests(savedRequests);
+
+      const localChat = localStorage.getItem('faz3tka-chat');
+      if (localChat) {
+        try {
+          setChatMessages(JSON.parse(localChat));
+        } catch {
+          // ignore invalid local data
+        }
+      }
+
+      const localRequests = localStorage.getItem('faz3tka-requests');
+      if (localRequests) {
+        try {
+          setRequests(JSON.parse(localRequests));
+        } catch {
+          // ignore invalid local data
+        }
+      }
+    };
+
+    loadPersistent();
+  }, []);
 
   useEffect(() => {
     localStorage.setItem('faz3tka-chat', JSON.stringify(chatMessages));
+    if (isSupabaseConfigured) {
+      syncWithSupabase('faz3tka-chat', chatMessages).catch(() => {});
+    }
   }, [chatMessages]);
 
   useEffect(() => {
     localStorage.setItem('faz3tka-requests', JSON.stringify(requests));
+    if (isSupabaseConfigured) {
+      syncWithSupabase('faz3tka-requests', requests).catch(() => {});
+    }
   }, [requests]);
 
   const stats = useMemo(() => ({
@@ -97,6 +128,7 @@ function App() {
       price: 'قيد التقييم',
       service: servicesMap[selectedService]?.label || 'خدمة',
     };
+
     setRequests((prev) => [next, ...prev]);
     setChatMessages((prev) => [
       ...prev,
