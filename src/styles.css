@@ -1,0 +1,404 @@
+import React, { useMemo, useState, useEffect } from 'react';
+import ReactDOM from 'react-dom/client';
+import './styles.css';
+
+const initialServices = [
+  { id: 'plumbing', title: 'السباكة', icon: '💧', color: '#2563eb' },
+  { id: 'electrical', title: 'الكهرباء', icon: '⚡', color: '#f59e0b' },
+  { id: 'ac', title: 'التكييف', icon: '❄️', color: '#06b6d4' },
+  { id: 'painting', title: 'الدهانات', icon: '🎨', color: '#d97706' },
+  { id: 'furniture', title: 'النجارة', icon: '🪵', color: '#8b5cf6' },
+  { id: 'cleaning', title: 'النظافة', icon: '🧼', color: '#10b981' },
+  { id: 'move', title: 'نقل الأثاث', icon: '📦', color: '#ef4444' },
+  { id: 'project', title: 'مشاريع كبيرة', icon: '🏗️', color: '#14b8a6' },
+];
+
+const initialProviders = [
+  { id: 1, name: 'مؤسسة الخليج للنجارة', specialty: 'نجارة ومتابعة تجهيزات المنزل', city: 'الرياض', jobs: 283, rating: 4.9 },
+  { id: 2, name: 'إسكان برو', specialty: 'سباكة وكهرباء وديكور', city: 'جدة', jobs: 421, rating: 4.8 },
+  { id: 3, name: 'خدمات نضارة', specialty: 'تنظيف منزلي وصيانة', city: 'الدمام', jobs: 315, rating: 4.7 },
+  { id: 4, name: 'بيت الحرف', specialty: 'تشطيب ودهانات ومشاريع', city: 'مكة', jobs: 197, rating: 4.9 },
+];
+
+const initialRequests = [
+  { id: 1, title: 'طلب سباكة عاجل', status: 'قيد المراجعة', city: 'الرياض', price: '350 ر.س', service: 'السباكة' },
+  { id: 2, title: 'مشروع بناء غرفة نوم', status: 'تمت الموافقة', city: 'جدة', price: '6800 ر.س', service: 'مشاريع كبيرة' },
+  { id: 3, title: 'تثبيت مكيف ستاندرد', status: 'قيد التنفيذ', city: 'الدمام', price: '1200 ر.س', service: 'التكييف' },
+];
+
+const initialChat = [
+  { sender: 'assistant', text: 'مرحباً، أنا مساعد فزعتك. ماهي حاجتك اليوم؟' },
+  { sender: 'user', text: 'أحتاج تركيب مكيف وغرفة إضافية' },
+  { sender: 'assistant', text: 'أفهم أنك تحتاج خدمة التكييف ومشروع بناء أو إضافة. ما المدينة؟ وما نوع المشروع؟' },
+];
+
+const aiReply = (text) => {
+  const lower = text.toLowerCase();
+  if (lower.includes('بناء') || lower.includes('غرفة') || lower.includes('إضافة') || lower.includes('ملحق')) {
+    return 'أفهم أنك تحتاج مشروع بناء أو ملحق. أحتاج معرفة المساحة التقريبية والمدينة، وسأنشئ لك طلب مشروع مع عطاءات متعددة.';
+  }
+  if (lower.includes('مكيف') || lower.includes('تكييف')) {
+    return 'ممتاز. هل تريد تركيب جديد أم صيانة؟ وهل الموقع داخل المنزل أو في مكتب؟ أستطيع تنظيم الطلب لك بشكل سريع.';
+  }
+  if (lower.includes('سباكة') || lower.includes('ماء') || lower.includes('خزان')) {
+    return 'جيد. هل المشكلة في تسريب، تركيب نقطة مياه، أو إصلاح تجهيز؟ أحتاج تفاصيل الموقع واسم الخدمة.';
+  }
+  if (lower.includes('نظافة') || lower.includes('تنظيف')) {
+    return 'تم. ما نوع التنظيف؟ تنظيف منزلي، بعد تشطيب، أو دوري؟ وأين تقع الوحدة؟';
+  }
+  return 'تم تسجيل الطلب في موجهات فزعتك. أحتاج رقم الخدمة، المدينة، وتاريخ التوفر لتحضير العروض المناسبة.';
+};
+
+function App() {
+  const [activeRole, setActiveRole] = useState('client');
+  const [selectedService, setSelectedService] = useState('plumbing');
+  const [city, setCity] = useState('الرياض');
+  const [serviceName, setServiceName] = useState('');
+  const [description, setDescription] = useState('');
+  const [chatInput, setChatInput] = useState('');
+  const [chat, setChat] = useState(() => {
+    const saved = localStorage.getItem('faz3tka-chat');
+    return saved ? JSON.parse(saved) : initialChat;
+  });
+  const [requests, setRequests] = useState(() => {
+    const saved = localStorage.getItem('faz3tka-requests');
+    return saved ? JSON.parse(saved) : initialRequests;
+  });
+
+  useEffect(() => {
+    localStorage.setItem('faz3tka-chat', JSON.stringify(chat));
+  }, [chat]);
+
+  useEffect(() => {
+    localStorage.setItem('faz3tka-requests', JSON.stringify(requests));
+  }, [requests]);
+
+  const dashboardStats = useMemo(() => ({
+    requests: requests.length + 18,
+    providers: 124,
+    online: 37,
+    conversion: '78%',
+  }), [requests]);
+
+  const submitRequest = () => {
+    const title = serviceName.trim() || servicesLookup[selectedService]?.title || 'خدمة جديدة';
+    const payload = {
+      id: Date.now(),
+      title,
+      status: 'تم إنشاء الطلب',
+      city,
+      price: 'قيد التقييم',
+      service: servicesLookup[selectedService]?.title || 'خدمة',
+    };
+
+    setRequests((prev) => [payload, ...prev]);
+    setChat((prev) => [
+      ...prev,
+      { sender: 'assistant', text: `تم إنشاء الطلب: ${title} في ${city}. جاري تجهيز العروض من مقدمي الخدمة.` },
+    ]);
+    setServiceName('');
+    setDescription('');
+  };
+
+  const sendChat = () => {
+    const text = chatInput.trim();
+    if (!text) return;
+    setChat((prev) => [
+      ...prev,
+      { sender: 'user', text },
+      { sender: 'assistant', text: aiReply(text) },
+    ]);
+    setChatInput('');
+  };
+
+  const selectedServiceTitle = servicesLookup[selectedService]?.title || 'خدمة';
+
+  return (
+    <div className="app-shell">
+      <header className="topbar">
+        <div className="brand-wrap">
+          <div className="brand-mark">ف</div>
+          <div>
+            <h1>فزعتك</h1>
+            <small>خدمات المنازل والمشاريع</small>
+          </div>
+        </div>
+
+        <nav className="nav">
+          <button className="nav-item active">الرئيسية</button>
+          <button className="nav-item">الطلبات</button>
+          <button className="nav-item">المشاريع</button>
+          <button className="nav-item">المزودون</button>
+        </nav>
+
+        <button className="primary-btn">تسجيل الدخول</button>
+      </header>
+
+      <main className="main-grid">
+        <section className="hero-panel">
+          <div className="hero-copy">
+            <span className="eyebrow">منصة ذكية في السعودية</span>
+            <h2>خدمة منزليّة ومعاملات ميدانية بشكل سريع وموثوق</h2>
+            <p>
+              جمع العميل ومقدم الخدمة في منصة واحدة، مع مساعد ذكي يترجم الطلب إلى خدمة منظمة، ويحفظ
+              الموقع، ويقارن العروض قبل الحجز.
+            </p>
+
+            <div className="cta-row">
+              <button className="primary-btn">اطلب الخدمة الآن</button>
+              <button className="secondary-btn">استكشف المشاريع</button>
+            </div>
+
+            <div className="stat-row">
+              <div>
+                <strong>{dashboardStats.providers}</strong>
+                <span>مقدم خدمة</span>
+              </div>
+              <div>
+                <strong>{dashboardStats.requests}</strong>
+                <span>طلبات نشطة</span>
+              </div>
+              <div>
+                <strong>{dashboardStats.conversion}</strong>
+                <span>معدل التحويل</span>
+              </div>
+            </div>
+          </div>
+
+          <div className="ai-card">
+            <div className="ai-card-header">
+              <div>
+                <span className="dot green" />
+                <strong>مساعد فزعتك</strong>
+              </div>
+              <small>جاهز الآن</small>
+            </div>
+
+            <div className="chat-box">
+              {chat.map((message, idx) => (
+                <div key={`${message.sender}-${idx}`} className={`bubble ${message.sender}`}>
+                  {message.text}
+                </div>
+              ))}
+            </div>
+
+            <div className="chat-input-row">
+              <input
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+                placeholder="اكتب طلبك أو تحدث إلى المساعد..."
+              />
+              <button onClick={sendChat}>إرسال</button>
+            </div>
+          </div>
+        </section>
+
+        <section className="section-block">
+          <div className="section-head">
+            <h3>الخدمات السريعة</h3>
+            <a href="#">عرض الكل</a>
+          </div>
+
+          <div className="service-grid">
+            {initialServices.map((service) => (
+              <button
+                key={service.id}
+                className={`service-card ${selectedService === service.id ? 'active' : ''}`}
+                onClick={() => setSelectedService(service.id)}
+                style={{ '--service-accent': service.color }}
+              >
+                <span className="service-icon">{service.icon}</span>
+                <strong>{service.title}</strong>
+              </button>
+            ))}
+          </div>
+        </section>
+
+        <section className="request-layout">
+          <div className="request-card">
+            <div className="section-head">
+              <h3>إنشاء طلب جديد</h3>
+            </div>
+
+            <div className="field-group">
+              <label>الخدمة المختارة</label>
+              <select value={selectedService} onChange={(e) => setSelectedService(e.target.value)}>
+                {initialServices.map((service) => (
+                  <option key={service.id} value={service.id}>{service.title}</option>
+                ))}
+              </select>
+            </div>
+
+            <div className="field-group">
+              <label>المدينة</label>
+              <select value={city} onChange={(e) => setCity(e.target.value)}>
+                <option value="الرياض">الرياض</option>
+                <option value="جدة">جدة</option>
+                <option value="الدمام">الدمام</option>
+                <option value="مكة">مكة</option>
+                <option value="تبوك">تبوك</option>
+              </select>
+            </div>
+
+            <div className="field-group">
+              <label>اسم الخدمة</label>
+              <input
+                value={serviceName}
+                onChange={(e) => setServiceName(e.target.value)}
+                placeholder="مثال: تركيب مكيف، دهان غرفتين، بناء غرفة" 
+              />
+            </div>
+
+            <div className="field-group">
+              <label>تفاصيل الطلب</label>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows="4"
+                placeholder="اكتب تفاصيل العمل: المساحة، عدد الوحدات، التاريخ المطلوب، ويشار إلى أي ملاحظات مهمة"
+              />
+            </div>
+
+            <button className="primary-btn full" onClick={submitRequest}>إنشاء الطلب</button>
+          </div>
+
+          <div className="request-card">
+            <div className="section-head">
+              <h3>آخر العروض</h3>
+              <a href="#">عرض الجميع</a>
+            </div>
+
+            <div className="task-list">
+              {requests.slice(0, 4).map((item) => (
+                <div key={item.id} className="task-item">
+                  <div>
+                    <strong>{item.title}</strong>
+                    <span>{item.city}</span>
+                  </div>
+                  <div className="task-state">
+                    <small>{item.status}</small>
+                    <b>{item.price}</b>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        <section className="section-block">
+          <div className="section-head">
+            <h3>أفضل مقدمي الخدمة</h3>
+            <a href="#">عرض المزيد</a>
+          </div>
+
+          <div className="provider-grid">
+            {initialProviders.map((provider) => (
+              <article key={provider.id} className="provider-card">
+                <div className="provider-top">
+                  <div className="provider-avatar">{provider.name.slice(0, 2)}</div>
+                  <div>
+                    <strong>{provider.name}</strong>
+                    <small>{provider.city}</small>
+                  </div>
+                </div>
+                <p>{provider.specialty}</p>
+                <div className="provider-meta">
+                  <span>⭐ {provider.rating}</span>
+                  <span>{provider.jobs} عملاً</span>
+                </div>
+                <button className="secondary-btn">عرض العروض</button>
+              </article>
+            ))}
+          </div>
+        </section>
+
+        <section className="dashboard-block">
+          <div className="section-head">
+            <h3>لوحة الحالة</h3>
+          </div>
+
+          <div className="tabs">
+            <button className={activeRole === 'client' ? 'tab active' : 'tab'} onClick={() => setActiveRole('client')}>عميل</button>
+            <button className={activeRole === 'provider' ? 'tab active' : 'tab'} onClick={() => setActiveRole('provider')}>مقدم خدمة</button>
+            <button className={activeRole === 'manager' ? 'tab active' : 'tab'} onClick={() => setActiveRole('manager')}>مدير النظام</button>
+          </div>
+
+          <div className="dashboard-grid">
+            <div className="metric-box">
+              <span>الطلبات</span>
+              <strong>{dashboardStats.requests}</strong>
+            </div>
+            <div className="metric-box">
+              <span>العروض</span>
+              <strong>74</strong>
+            </div>
+            <div className="metric-box">
+              <span>متصل الآن</span>
+              <strong>{dashboardStats.online}</strong>
+            </div>
+            <div className="metric-box">
+              <span>معدل الإنجاز</span>
+              <strong>{dashboardStats.conversion}</strong>
+            </div>
+          </div>
+
+          <div className="dashboard-note">
+            {activeRole === 'client' && 'العميل يستطيع إنشاء الطلب، مراجعة العروض، ومتابعة حالة الخدمة حتى التنفيذ.'}
+            {activeRole === 'provider' && 'مقدم الخدمة يرى الطلبات المناسبة، يرسل عروض الأسعار، ويحدث حالة التنفيذ.'}
+            {activeRole === 'manager' && 'مدير النظام يراجع البلاغات، يتابع الطلبات، ويضمن الالتزام بالاستخدام الآمن.'}
+          </div>
+        </section>
+
+        <section className="project-panel">
+          <div className="section-head">
+            <h3>مشروع كبير — محاكاة مهمة</h3>
+          </div>
+
+          <div className="project-box">
+            <div className="project-metadata">
+              <div>
+                <span>اسم المشروع</span>
+                <strong>بناء غرفة إضافية</strong>
+              </div>
+              <div>
+                <span>المدينة</span>
+                <strong>جدة</strong>
+              </div>
+              <div>
+                <span>الميزانية</span>
+                <strong>12,000 ر.س</strong>
+              </div>
+            </div>
+
+            <div className="project-steps">
+              <div className="step done">
+                <span>1</span>
+                <p>إدخال الطلب</p>
+              </div>
+              <div className="step done">
+                <span>2</span>
+                <p>تحليل الفكرة</p>
+              </div>
+              <div className="step active">
+                <span>3</span>
+                <p>مقارنة العروض</p>
+              </div>
+              <div className="step">
+                <span>4</span>
+                <p>تأكيد التنفيذ</p>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+  );
+}
+
+const servicesLookup = Object.fromEntries(initialServices.map((item) => [item.id, item]));
+
+ReactDOM.createRoot(document.getElementById('root')).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
