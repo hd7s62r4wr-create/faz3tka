@@ -35,6 +35,18 @@ const seedChat = [
   { sender: 'assistant', text: 'مفيد، هل تريد تركيبًا جديدًا أم صيانة؟ وما المدينة؟ أستطيع تنظيم الطلب لك بسرعة.' },
 ];
 
+const providerActiveJobs = [
+  { id: 101, title: 'تركيب مكيف شقّة', city: 'الرياض', status: 'قيد التنفيذ', price: '1200 ر.س' },
+  { id: 102, title: 'إصلاح تسريب مطبخ', city: 'جدة', status: 'جاهز للزيارة', price: '850 ر.س' },
+  { id: 103, title: 'دهان غرفة أطفال', city: 'الدمام', status: 'مؤكد', price: '1500 ر.س' },
+];
+
+const providerQuotes = [
+  { id: 201, title: 'عروض غسيل بلاط', city: 'مكة', budget: '1400 ر.س', state: 'قيد الرد' },
+  { id: 202, title: 'تركيب ستاندرد مكيف', city: 'الرياض', budget: '2200 ر.س', state: 'تم قبولها' },
+  { id: 203, title: 'تجهيز غرفة إضافية', city: 'جدة', budget: '9800 ر.س', state: 'قيد المراجعة' },
+];
+
 const aiReply = (text) => {
   const t = text.toLowerCase();
   if (t.includes('بناء') || t.includes('غرفة') || t.includes('إضافة') || t.includes('ملحق')) {
@@ -386,6 +398,63 @@ function App() {
             {role === 'provider' && 'مقدم الخدمة يرى الطلبات المناسبة، يرسل عروض الأسعار، ويحدث حالة التنفيذ مباشرة.'}
             {role === 'manager' && 'مدير النظام يراجع الطلبات والبلاغات، ويتابع سجلات التشغيل والتنبيهات الأمنية.'}
           </div>
+
+          {role === 'provider' && (
+            <div className="provider-panel">
+              <div className="provider-overview">
+                <div className="mini-box">
+                  <span>الطلبات النشطة</span>
+                  <strong>{providerActiveJobs.length}</strong>
+                </div>
+                <div className="mini-box">
+                  <span>العروض الحالية</span>
+                  <strong>{providerQuotes.length}</strong>
+                </div>
+                <div className="mini-box">
+                  <span>إيراد الشهر</span>
+                  <strong>18,400 ر.س</strong>
+                </div>
+                <div className="mini-box">
+                  <span>التقييم</span>
+                  <strong>4.9/5</strong>
+                </div>
+              </div>
+
+              <div className="provider-grid-two">
+                <div className="provider-list">
+                  <h4>الطلبات النشطة</h4>
+                  {providerActiveJobs.map((job) => (
+                    <div key={job.id} className="list-row">
+                      <div>
+                        <strong>{job.title}</strong>
+                        <small>{job.city}</small>
+                      </div>
+                      <div className="right-align">
+                        <span>{job.status}</span>
+                        <b>{job.price}</b>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="provider-list">
+                  <h4>عروض الأسعار</h4>
+                  {providerQuotes.map((quote) => (
+                    <div key={quote.id} className="list-row">
+                      <div>
+                        <strong>{quote.title}</strong>
+                        <small>{quote.city}</small>
+                      </div>
+                      <div className="right-align">
+                        <span>{quote.state}</span>
+                        <b>{quote.budget}</b>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
         </section>
 
         <section className="project-panel">
